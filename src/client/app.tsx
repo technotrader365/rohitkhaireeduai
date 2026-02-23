@@ -1,103 +1,88 @@
-import React, { useState, useEffect, useMemo } from 'react'
-import { IncidentService } from './services/IncidentService'
-import IncidentList from './components/IncidentList'
-import IncidentForm from './components/IncidentForm'
-import './app.css'
 
-export default function App() {
-    const [incidents, setIncidents] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [showForm, setShowForm] = useState(false)
-    const [selectedIncident, setSelectedIncident] = useState(null)
-    const [error, setError] = useState(null)
+import React from 'react';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Layout } from './components/Layout';
+import { Dashboard } from './pages/Dashboard';
+import { TeacherDashboard } from './pages/TeacherDashboard';
+import { CareerPathways } from './pages/CareerPathways';
+import { ComplianceCheck } from './pages/ComplianceCheck';
+import { ComplianceReview } from './pages/ComplianceReview';
+import { GradingReview } from './pages/GradingReview';
+import { EngagementHub } from './pages/EngagementHub';
+import { Settings } from './pages/Settings';
+import { Auth } from './pages/Auth';
+import { Courses } from './pages/Courses';
+import { Landing } from './pages/Landing';
+import { Calendar } from './pages/Calendar';
+import { AssessmentManager } from './pages/AssessmentManager';
+import { StudentInsights } from './pages/StudentInsights';
+import { StudentAssessments } from './pages/StudentAssessments';
+import { CourseProvider } from './context/CourseContext';
+import { UserProvider, useUser } from './context/UserContext';
 
-    const incidentService = useMemo(() => new IncidentService(), [])
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const session = localStorage.getItem('user_session');
+  if (!session) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+};
 
-    const refreshIncidents = async () => {
-        try {
-            setLoading(true)
-            setError(null)
-            const data = await incidentService.list()
-            setIncidents(data)
-        } catch (err) {
-            setError('Failed to load incidents: ' + (err.message || 'Unknown error'))
-            console.error(err)
-        } finally {
-            setLoading(false)
-        }
-    }
+const RoleRoute: React.FC<{ children: React.ReactNode, role: 'teacher' | 'student' }> = ({ children, role }) => {
+  const { user } = useUser();
+  
+  // Admin role bypasses restriction and can view both
+  if (user.role === 'admin') {
+    return <>{children}</>;
+  }
 
-    useEffect(() => {
-        void refreshIncidents()
-    }, [])
+  if (user.role !== role) {
+    // Redirect based on what they *should* be seeing
+    return <Navigate to={user.role === 'student' ? '/dashboard' : '/teacher-dashboard'} replace />;
+  }
 
-    const handleCreateClick = () => {
-        setSelectedIncident(null)
-        setShowForm(true)
-    }
+  return <>{children}</>;
+};
 
-    const handleEditClick = (incident) => {
-        setSelectedIncident(incident)
-        setShowForm(true)
-    }
+const AppRoutes: React.FC = () => {
+  return (
+    <Routes>
+      <Route path="/" element={<Landing />} />
+      <Route path="/login" element={<Auth mode="login" />} />
+      <Route path="/signup" element={<Auth mode="signup" />} />
+      
+      {/* Student Routes */}
+      <Route path="/dashboard" element={<ProtectedRoute><RoleRoute role="student"><Dashboard /></RoleRoute></ProtectedRoute>} />
+      <Route path="/career" element={<ProtectedRoute><RoleRoute role="student"><CareerPathways /></RoleRoute></ProtectedRoute>} />
+      <Route path="/compliance" element={<ProtectedRoute><RoleRoute role="student"><ComplianceCheck /></RoleRoute></ProtectedRoute>} />
+      <Route path="/grading" element={<ProtectedRoute><RoleRoute role="student"><GradingReview /></RoleRoute></ProtectedRoute>} />
+      <Route path="/engagement" element={<ProtectedRoute><RoleRoute role="student"><EngagementHub /></RoleRoute></ProtectedRoute>} />
+      <Route path="/student-assessments" element={<ProtectedRoute><RoleRoute role="student"><StudentAssessments /></RoleRoute></ProtectedRoute>} />
 
-    const handleFormClose = () => {
-        setShowForm(false)
-        setSelectedIncident(null)
-    }
+      {/* Teacher Routes - Admin can see these too */}
+      <Route path="/teacher-dashboard" element={<ProtectedRoute><RoleRoute role="teacher"><TeacherDashboard /></RoleRoute></ProtectedRoute>} />
+      <Route path="/assessments" element={<ProtectedRoute><RoleRoute role="teacher"><AssessmentManager /></RoleRoute></ProtectedRoute>} />
+      <Route path="/student-insights" element={<ProtectedRoute><RoleRoute role="teacher"><StudentInsights /></RoleRoute></ProtectedRoute>} />
+      <Route path="/compliance-review" element={<ProtectedRoute><RoleRoute role="teacher"><ComplianceReview /></RoleRoute></ProtectedRoute>} />
 
-    const handleFormSubmit = async (formData) => {
-        setLoading(true)
-        try {
-            if (selectedIncident) {
-                const sysId =
-                    typeof selectedIncident.sys_id === 'object'
-                        ? selectedIncident.sys_id.value
-                        : selectedIncident.sys_id
-                await incidentService.update(sysId, formData)
-            } else {
-                await incidentService.create(formData)
-            }
-            setShowForm(false)
-            await refreshIncidents()
-        } catch (err) {
-            setError('Failed to save incident: ' + (err.message || 'Unknown error'))
-            console.error(err)
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    return (
-        <div className="incident-app">
-            <header className="app-header">
-                <h1>Incident Response Manager</h1>
-                <button className="create-button" onClick={handleCreateClick}>
-                    Create New Incident
-                </button>
-            </header>
-
-            {error && (
-                <div className="error-message">
-                    {error}
-                    <button onClick={() => setError(null)}>Dismiss</button>
-                </div>
-            )}
-
-            {loading ? (
-                <div className="loading">Loading...</div>
-            ) : (
-                <IncidentList
-                    incidents={incidents}
-                    onEdit={handleEditClick}
-                    onRefresh={refreshIncidents}
-                    service={incidentService}
-                />
-            )}
-
-            {showForm && (
-                <IncidentForm incident={selectedIncident} onSubmit={handleFormSubmit} onCancel={handleFormClose} />
-            )}
-        </div>
-    )
+      {/* Shared Routes */}
+      <Route path="/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
+      <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+    </Routes>
+  );
 }
+
+const App: React.FC = () => {
+  return (
+    <UserProvider>
+      <CourseProvider>
+        <HashRouter>
+          <Layout>
+            <AppRoutes />
+          </Layout>
+        </HashRouter>
+      </CourseProvider>
+    </UserProvider>
+  );
+};
+
+export default App;
