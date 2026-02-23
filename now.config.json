@@ -1,0 +1,6 @@
+{
+  "scope": "x_174120_edupulse",
+  "scopeId": "8d7a93a483937210443ec9e0deaad3cc",
+  "name": "EduPulse AI",
+  "tsconfigPath": "./src/server/tsconfig.json"
+}
