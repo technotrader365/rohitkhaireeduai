@@ -1,0 +1,7 @@
+{
+  "name": "EduPulse AI: Student Success Platform",
+  "description": "An AI-powered student management platform focusing on proactive engagement, career intelligence, study-at-home compliance, and handwritten work assessment.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
